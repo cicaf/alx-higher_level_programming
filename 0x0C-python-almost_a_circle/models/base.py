@@ -1,107 +1,132 @@
 #!/usr/bin/python3
-"""base
+""" The base module
+This module supplies the Base Class.
 """
+
 import json
-import csv
 
 
 class Base:
-    """Base of the other shapes
+    """ Defines the Base class
+
+    Attributes:
+        __nb_objects (int): private class attribute, records no of instances
+
     """
     __nb_objects = 0
 
     def __init__(self, id=None):
+        """ Initializes the Base class
+
+        Args:
+            id (int): Unique identifier for class
+
+        Returns:
+            None.
+        """
+        self.id = id
+
+    @property
+    def id(self):
+        """ Returns the id value """
+
+        return self.__id
+
+    @id.setter
+    def id(self, id=None):
+        """ Sets id value """
+
         if id is not None:
-            self.id = id
+            if type(id) is not int:
+                raise TypeError("id must be > 0")
+            self.__id = id
         else:
-            Base.__nb_objects += 1
-            self.id = Base.__nb_objects
+            type(self).__nb_objects += 1
+            self.__id = type(self).__nb_objects
 
     @staticmethod
     def to_json_string(list_dictionaries):
-        """Returns JSON string representation
+        """ Returns the json string representation of list_dictionaries.
+
+        Args:
+            list_dictionaries: Dictionary representations of instances."
         """
-        if list_dictionaries is None or len(list_dictionaries) == 0:
+
+        if (list_dictionaries is None) or list_dictionaries == []:
             return "[]"
-        else:
-            return json.dumps(list_dictionaries)
-
-    @staticmethod
-    def from_json_string(json_string):
-        """Returns JSON strings in list
-        """
-
-        if type(json_string) != str or len(json_string) == 0:
-            return []
-        return json.loads(json_string)
-
-    @classmethod
-    def create(cls, **dictionary):
-        """Returns an instance with all attrs already set
-        """
-
-        if cls.__name__ == "Rectangle":
-            temp = cls(1, 1)
-        if cls.__name__ == "Square":
-            temp = cls(1)
-        # update temp with obj func update()
-        temp.update(**dictionary)
-        return temp
+        return json.dumps(list_dictionaries)
 
     @classmethod
     def save_to_file(cls, list_objs):
-        """Writes to file with JSON string
+        """ Writes the JSON string representation of list_objs to a file.
+
+        Args:
+            list_objs (instance): A list of instances.
+
+        Return:
+            None.
         """
 
-        with open(cls.__name__ + ".json", mode="w") as write_file:
-            if list_objs is None:
-                write_file.write("[]")
-            else:
-                # Using to_json_string(), and to_dictionary() to format
-                write_file.write(cls.to_json_string(
-                                 [item.to_dictionary() for item in list_objs]))
+        filename = cls.__name__ + ".json"
+        obj_dicts = []
+
+        if list_objs is not None:
+            for obj in list_objs:
+                obj_dicts.append(cls.to_dictionary(obj))
+        with open(filename, 'w') as file:
+            file.write(cls.to_json_string(obj_dicts))
+
+    @staticmethod
+    def from_json_string(json_string):
+        """ Returns the list of the JSON string representation.
+
+        Args:
+            json_string (json): The json string.
+        """
+
+        if json_string is None or json_string == "":
+            return []
+        else:
+            return json.loads(json_string)
+
+    @classmethod
+    def create(cls, **dictionary):
+        """ Returns an instance with all attributes already set.
+
+        Args:
+            dictionary: A dictionary of attributes of a class.
+        """
+
+        if cls.__name__ == "Rectangle":
+            dummy = cls(1, 1)
+        elif cls.__name__ == "Square":
+            dummy = cls(1)
+
+        dummy.update(**dictionary)
+
+        return dummy
 
     @classmethod
     def load_from_file(cls):
-        """Returns a list of instances
-        """
+        """ Returns a list of instances. """
 
-        res = []
-        with open(cls.__name__ + ".json", mode="r") as read_file:
-            text = read_file.read()
-        # Converting str to list
-        text = cls.from_json_string(text)
-        for item in text:
-            # Formatting dicts into str format
-            if type(item) == dict:
-                res.append(cls.create(**item))
-            else:
-                res.append(item)
-        return res
+        # file name to read from
+        filename = cls.__name__ + ".json"
+        # list to record instances as they are being created
+        instances = []
+        try:
+            with open(filename, "r") as file:
+                # Read from the file, a json_string
+                json_string = file.read()
+                # convert the json string to dictionaries
+                list_dict = cls.from_json_string(json_string)
 
-    @classmethod
-    def save_to_file_csv(cls, list_objs):
-        """Saves to csv file
-        """
+                # create the instances for every available dictionary.
+                for dictionary in list_dict:
+                    obj = cls.create(**dictionary)
+                    instances.append(obj)
 
-        res = [item.to_dictionary() for item in list_objs]
-        with open(cls.__name__ + ".csv", mode="w") as save_file:
-            write_to = csv.DictWriter(save_file, res[0].keys())
-            write_to.writeheader()
-            write_to.writerows(res)
+            return instances
 
-    @classmethod
-    def load_from_file_csv(cls):
-        """Loads from csv file
-        """
-
-        res = []
-        res_dict = {}
-        with open(cls.__name__ + ".csv", mode="r") as read_file:
-            read_from = csv.DictReader(read_file)
-            for item in read_from:
-                for k, v in dict(item).items():
-                    res_dict[k] = int(v)
-                # formatting with create()
-                res.append(cls.create(**res_dict))
-        return res
+        except FileNotFoundError as Error:
+            return []
